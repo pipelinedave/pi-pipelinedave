@@ -9,6 +9,7 @@ export default function (pi: ExtensionAPI) {
     turns: 0,
     gitChanges: 0,
     tmuxSessions: 0,
+    planSteps: { completed: 0, total: 0 } as { completed: number; total: number },
     toolRunning: false,
     toolName: "",
     toolStart: 0,
@@ -58,20 +59,41 @@ export default function (pi: ExtensionAPI) {
       // Fixed width for consistent alignment
       const minWidth = 70;
       
-      // Left side: Mode + Activity
-      const left = activity ? `${modeInfo} ${activity}` : modeInfo;
+      // Left side: Mode indicator with label
+      const left = `${modeInfo} ${state.mode.toUpperCase()}`;
       
-      // Right side: Stats tray (symbol LEFT of value, aligned right)
-      const right = `📊${state.tokens.toLocaleString()} 🔄${state.turns} 📂${state.gitChanges} 🖥️${state.tmuxSessions}`;
+      // Activity indicator (only when active) - shown after mode
+      let activityPart = "";
+      if (activity) {
+        activityPart = ` • ${activity}`;
+      }
       
-      // Calculate padding to fill the box
-      const content = `${left}  │  ${right}`;
-      const width = Math.max(content.length + 4, minWidth);
-      const padding = width - content.length - 2;
+      // Show plan progress in plan mode
+      let modeExtra = "";
+      if (state.mode === "plan" && state.planSteps.total > 0) {
+        modeExtra = ` • ${state.planSteps.completed}/${state.planSteps.total} steps`;
+      }
       
-      const boxTop = "╭" + "─".repeat(width - 2) + "╮";
-      const boxMiddle = `│ ${left}  │  ${right}${" ".repeat(padding)} │`;
-      const boxBottom = "╰" + "─".repeat(width - 2) + "╯";
+      // Right side: Stats tray with proper spacing and labels
+      // Format: 📊 40,450  🔄 5  📂 3  🖥️ 2
+      const stats = [
+        `📊 ${state.tokens.toLocaleString()}`,
+        `🔄 ${state.turns}`,
+        `📂 ${state.gitChanges}`,
+        `🖥️ ${state.tmuxSessions}`,
+      ].join("  ");
+      
+      // Build the full line with proper alignment
+      const separator = " │ ";
+      const leftFull = `${left}${activityPart}${modeExtra}`;
+      
+      // Calculate total width and right-align stats
+      const totalWidth = Math.max(minWidth, leftFull.length + separator.length + stats.length + 4);
+      const rightPadding = totalWidth - leftFull.length - separator.length - stats.length - 2;
+      
+      const boxTop = "╭" + "─".repeat(totalWidth - 2) + "╮";
+      const boxMiddle = `│ ${leftFull}${separator}${stats}${" ".repeat(rightPadding)} │`;
+      const boxBottom = "╰" + "─".repeat(totalWidth - 2) + "╯";
       
       ctx.ui.setWidget("status", [boxTop, boxMiddle, boxBottom]);
     } catch (e) {
@@ -89,6 +111,7 @@ export default function (pi: ExtensionAPI) {
     state.mode = "chat";
     state.turns = 0;
     state.tokens = 0;
+    state.planSteps = { completed: 0, total: 0 };
     state.activity = "ready";
     updateStatus(ctx);
   });
@@ -163,6 +186,21 @@ export default function (pi: ExtensionAPI) {
       state.mode = event.mode;
       updateStatus(ctx);
     }
+    if (event.planSteps) {
+      state.planSteps = event.planSteps;
+      updateStatus(ctx);
+    }
+  });
+
+  // Listen for plan step updates
+  pi.on("plan_step_added", async (event, ctx) => {
+    state.planSteps.total++;
+    updateStatus(ctx);
+  });
+
+  pi.on("plan_step_completed", async (event, ctx) => {
+    state.planSteps.completed++;
+    updateStatus(ctx);
   });
 
   function formatToolName(name: string): string {

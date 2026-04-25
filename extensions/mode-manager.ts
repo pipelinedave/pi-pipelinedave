@@ -102,6 +102,12 @@ export default function (pi: ExtensionAPI) {
       modeState.current = newMode as any;
       updateModeRestrictions();
 
+      // Emit mode change event for status bar
+      pi.emit("context_update", {
+        mode: newMode,
+        planSteps: modeState.planSteps || { completed: 0, total: 0 },
+      });
+
       // Handle mode-specific setup
       if (newMode === "plan") {
         // Check for PLAN.md
@@ -144,6 +150,12 @@ export default function (pi: ExtensionAPI) {
           modeState.planSteps = [];
         }
 
+        // Emit mode change event
+        pi.emit("context_update", {
+          mode: "plan",
+          planSteps: { completed: 0, total: 0 },
+        });
+
         ctx.ui.notify(
           "📋 Plan Mode Activated\n\n" +
           "• Tool restrictions enabled (no writes/deletes)\n" +
@@ -162,11 +174,19 @@ export default function (pi: ExtensionAPI) {
           description: step,
           status: "pending",
         });
+        
+        // Emit event for status bar update
+        pi.emit("plan_step_added", { step });
+        
         ctx.ui.notify(`✓ Added step: ${step}`, "success");
       } else if (subcmd === "done") {
         const pending = modeState.planSteps?.find(s => s.status === "pending");
         if (pending) {
           pending.status = "completed";
+          
+          // Emit event for status bar update
+          pi.emit("plan_step_completed", { step: pending.description });
+          
           ctx.ui.notify(`✓ Marked complete: ${pending.description}`, "success");
         } else {
           ctx.ui.notify("No pending steps", "info");
@@ -223,30 +243,10 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     modeState.current = "chat";
     updateModeRestrictions();
-    
-    // Set initial mode in widget
-    if (ctx.ui?.setWidget) {
-      ctx.ui.setWidget("mode", [
-        "💬 CHAT MODE",
-        "Ready",
-        "",
-      ]);
-    }
+    // Mode display is now handled by status-bar extension
   });
 
-  // Periodic mode status update
-  pi.on("turn_end", async (_event, ctx) => {
-    if (ctx.ui?.setWidget) {
-      const modeEmoji = getModeEmoji(modeState.current);
-      const modeText = modeState.current.toUpperCase();
-      
-      ctx.ui.setWidget("mode", [
-        `${modeEmoji} ${modeText}`,
-        modeState.current === "plan" ? `${modeState.planSteps?.filter(s => s.status === "completed").length || 0}/${modeState.planSteps?.length || 0} steps` : "",
-        "",
-      ]);
-    }
-  });
+  // Periodic mode status update - removed, handled by status-bar
 
   function getModeInfo(): string {
     const emoji = getModeEmoji(modeState.current);

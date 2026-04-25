@@ -1,115 +1,134 @@
 ---
 name: web-search
-description: Search the web using Brave Search API for current information, documentation, facts, and research. Use when you need up-to-date information not in your training data.
+description: Search the web using DuckDuckGo for current information, documentation, facts, and research. Free, no API key required.
 ---
 
 # Web Search Skill
 
-Search the web and extract content from webpages using Brave Search API.
+Search the web using DuckDuckGo - completely free, no API keys needed.
 
 ## Setup
 
-1. Get a free API key from [Brave Search API](https://brave.com/search/api/)
+**Nothing to configure!** Just use it.
 
-2. Set the environment variable:
-```bash
-export BRAVE_API_KEY="your-api-key-here"
-```
-
-3. Or create `~/.pi/agent/.env`:
-```
-BRAVE_API_KEY=your-api-key-here
-```
+The `duckduckgo-search` library is already installed and the `web-search` tool is available in your PATH.
 
 ## Usage
 
 ### Basic Search
 ```bash
 # Search for information
-brave-search "react hooks best practices"
+~/.pi/agent/bin/web-search "react hooks best practices"
 
 # Limit results
-brave-search "typescript generics" --limit 5
+~/.pi/agent/bin/web-search "typescript generics" --limit 5
+
+# Or add to PATH and use:
+export PATH="$HOME/.pi/agent/bin:$PATH"
+web-search "query"
 ```
 
 ### Extract Page Content
 ```bash
-# Get full page content
-brave-search "https://example.com" --extract
+# Get full page content from top result
+web-search "next.js tutorial" --extract
 
-# Search and extract top result
-brave-search "next.js tutorial" --extract-top
+# Extract specific URL
+web-search "https://example.com" --extract
 ```
 
 ### Search Types
 ```bash
 # Web search (default)
-brave-search "query"
+web-search "query"
 
 # News search
-brave-search "ai news" --type news
+web-search "ai news" --type news
 
-# Image search (returns URLs)
-brave-search "landscape photos" --type images
+# Images search (returns URLs)
+web-search "landscape photos" --type images
+
+# Videos search
+web-search "tutorial videos" --type videos
+```
+
+### Advanced Options
+```bash
+# Region-specific results
+web-search "local news" --region us
+
+# Safe search
+web-search "query" --safesearch moderate
+
+# Time range
+web-search "latest updates" --timelimit y  # yearly
+web-search "recent news" --timelimit m     # monthly
+web-search "today's news" --timelimit d    # daily
 ```
 
 ## Use Cases
 
 ### Research & Facts
 ```bash
-brave-search "what is the latest stable version of Node.js"
+web-search "what is the latest stable version of Node.js"
 ```
 
 ### Documentation
 ```bash
-brave-search "React useEffect dependency array documentation"
+web-search "React useEffect dependency array documentation"
 ```
 
 ### Current Events
 ```bash
-brave-search "Kubernetes 1.29 release notes"
+web-search "Kubernetes 1.29 release notes"
 ```
 
 ### Code Solutions
 ```bash
-brave-search "how to handle async errors in Node.js Express"
+web-search "how to handle async errors in Node.js Express"
 ```
 
 ### Comparison
 ```bash
-brave-search "Next.js vs Remix vs SvelteKit 2024"
+web-search "Next.js vs Remix vs SvelteKit 2024"
 ```
 
 ## API Parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `--limit` | 10 | Number of results (1-20) |
-| `--type` | web | Search type: web, news, images |
-| `--country` | US | Country code for localized results |
-| `--safe` | true | Enable safe search |
+| `--limit` | 10 | Number of results (1-30) |
+| `--type` | web | Search type: web, news, images, videos |
+| `--region` | auto | Region code (us, uk, de, etc.) |
+| `--safesearch` | on | Safe search: on, moderate, off |
+| `--timelimit` | null | Time filter: d, w, m, y |
 | `--extract` | false | Extract content from URLs |
 
 ## Examples
 
 ### Find Latest Documentation
 ```bash
-brave-search "prisma 5.0 breaking changes" --limit 5
+web-search "prisma 5.0 breaking changes" --limit 5
 ```
 
 ### Research Technology
 ```bash
-brave-search "WebAssembly use cases 2024" --extract-top
+web-search "WebAssembly use cases 2024" --extract-top
 ```
 
 ### Debug Error
 ```bash
-brave-search "docker build failed permission denied solution"
+web-search "docker build failed permission denied solution"
 ```
 
 ### Compare Technologies
 ```bash
-brave-search "PostgreSQL vs MongoDB performance comparison"
+web-search "PostgreSQL vs MongoDB performance comparison"
+```
+
+### Quick Facts
+```bash
+web-search "Node.js latest version" --limit 3
 ```
 
 ## Integration with Pi
@@ -117,7 +136,7 @@ brave-search "PostgreSQL vs MongoDB performance comparison"
 When using with pi:
 
 1. **Ask me to search**: "Search for React 19 new features"
-2. **Use the tool directly**: `brave-search "query"`
+2. **Use the tool directly**: `web-search "query"`
 3. **Extract and summarize**: "Search and summarize top 3 results about X"
 
 ## Tips
@@ -127,18 +146,27 @@ When using with pi:
 - Combine terms: "typescript + react + hooks tutorial"
 - Add year for recent info: "python 3.12 features 2024"
 - Use site: for specific sites: "site:stackoverflow.com react hooks"
+- Use time filters for recent info: `--timelimit m` (month) or `--timelimit y` (year)
+
+## Why DuckDuckGo?
+
+- ✅ **100% free** - no API limits or quotas
+- ✅ **No registration** - no API keys to manage
+- ✅ **Privacy-first** - no tracking or profiling
+- ✅ **Reliable** - powered by DuckDuckGo's search engine
+- ✅ **No maintenance** - just works out of the box
 
 ## Troubleshooting
 
 **No results?**
-- Check API key is set
 - Try simpler query
 - Check internet connection
+- Remove safe search filters if too restrictive
 
-**Rate limited?**
-- Wait 60 seconds
-- Reduce query frequency
-- Upgrade API plan
+**Slow results?**
+- Reduce limit parameter
+- Try simpler query
+- Check network connection
 
 **Extract fails?**
 - Some sites block scraping
@@ -148,5 +176,5 @@ When using with pi:
 ---
 
 **Auto-detected**: Web search capability for current information
-**Required**: BRAVE_API_KEY environment variable
-**Cost**: Free tier: 2,000 queries/month
+**Required**: Nothing - just use it!
+**Cost**: Free (unlimited queries)

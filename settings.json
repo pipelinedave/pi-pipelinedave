@@ -1,0 +1,6 @@
+{
+  "lastChangelogVersion": "0.69.0",
+  "defaultProvider": "adesso",
+  "defaultModel": "qwen-3.5-122b-sovereign",
+  "theme": "cyberpunk"
+}

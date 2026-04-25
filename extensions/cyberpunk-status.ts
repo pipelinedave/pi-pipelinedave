@@ -139,20 +139,25 @@ export default function (pi: ExtensionAPI) {
     return { input, output, total: input + output, cost };
   }
 
-  // Render the status bar
+  // Render the status bar - stable layout: symbols left, activity middle, stats right
   function renderStatus(width: number, theme: any): string[] {
     const config = MODE_CONFIG[state.mode];
+    
+    // Fixed-width activity indicator to prevent layout shifts
+    const ACTIVITY_WIDTH = 18;
     
     // Animation frame for loading effect
     const anim = state.activity === "thinking" || state.activity === "network" 
       ? ANIMATION_FRAMES[state.animationFrame % ANIMATION_FRAMES.length] 
       : "●";
 
-    // Activity indicator
+    // Activity indicator - always same width
     let activityStr = "";
     if (state.activity === "tool" && state.toolRunning) {
       const duration = Date.now() - state.toolStart;
-      activityStr = `${theme.fg("yellow", "⚙")} ${theme.fg("dim", formatToolName(state.toolName))} ${theme.fg("cyan", `(${formatDuration(duration)})`)}`;
+      const toolText = `${formatToolName(state.toolName)} ${formatDuration(duration)}`;
+      const truncated = truncateToWidth(toolText, ACTIVITY_WIDTH - 4);
+      activityStr = `${theme.fg("yellow", "⚙")} ${theme.fg("cyan", truncated)}`;
     } else if (state.activity === "thinking") {
       activityStr = `${theme.fg("cyan", anim)} ${theme.fg("dim", "thinking")}`;
     } else if (state.activity === "network") {
@@ -160,53 +165,38 @@ export default function (pi: ExtensionAPI) {
     } else if (state.activity === "done") {
       activityStr = theme.fg("green", "✓");
     }
+    
+    // Pad activity to fixed width for stability
+    const activityPadded = truncateToWidth(activityStr, ACTIVITY_WIDTH).padEnd(ACTIVITY_WIDTH);
 
-    // Mode indicator
+    // Mode indicator with branch (left side)
     const modeColor = config.color as keyof typeof theme;
+    const branchShort = state.gitBranch && state.gitBranch.length > 10 
+      ? state.gitBranch.substring(0, 10) + "…" 
+      : state.gitBranch || "";
+    const branchStr = branchShort ? theme.fg("dim", `(${theme.fg("green", branchShort)})`) : "";
     const modeStr = `${theme.fg(modeColor, config.emoji)} ${theme.fg(modeColor, theme.bold(config.label))}`;
+    const leftSection = `${modeStr}${branchStr}`;
 
-    // Stats section
+    // Stats section - always visible, right side
     const tokenStr = theme.fg("yellow", `${formatNumber(state.tokens)}📊`);
     const turnStr = theme.fg("magenta", `${state.turns}🔄`);
-    const gitStr = state.gitChanges > 0 
-      ? theme.fg("red", `${state.gitChanges}📂`) 
-      : theme.fg("dim", "0📂");
-    const tmuxStr = state.tmuxSessions > 0 
-      ? theme.fg("cyan", `${state.tmuxSessions}🖥️`) 
-      : theme.fg("dim", "0🖥️");
+    const gitStr = theme.fg(state.gitChanges > 0 ? "red" : "dim", `${state.gitChanges}📂`);
+    const tmuxStr = theme.fg(state.tmuxSessions > 0 ? "cyan" : "dim", `${state.tmuxSessions}🖥️`);
+    const rightSection = `${tokenStr} ${turnStr} ${gitStr} ${tmuxStr}`;
 
-    // Branch indicator
-    const branchStr = state.gitBranch 
-      ? theme.fg("dim", ` (${theme.fg("green", state.gitBranch)})`) 
-      : "";
-
-    // Build the status line
-    const stats = `${tokenStr} ${turnStr} ${gitStr} ${tmuxStr}`;
-    const middle = activityStr ? ` ${activityStr} ` : "";
-    
-    const leftPart = `${modeStr}${branchStr}`;
-    const rightPart = stats;
-    
-    // Calculate padding
-    const leftWidth = visibleWidth(leftPart);
-    const rightWidth = visibleWidth(rightPart);
-    const middleWidth = width - leftWidth - rightWidth - 4; // 4 for borders and spacing
-    
-    const paddedMiddle = middle 
-      ? middle.padEnd(Math.max(1, middleWidth))
-      : " ".repeat(Math.max(1, middleWidth));
-
-    const statusLine = `${leftPart}${paddedMiddle}${rightPart}`;
+    // Build status line with fixed spacing
+    const statusLine = `${leftSection}  ${activityPadded}  ${rightSection}`;
     const truncatedLine = truncateToWidth(statusLine, width - 4);
 
     // Box dimensions
-    const boxWidth = Math.max(truncatedLine.length + 4, 40);
+    const boxWidth = Math.max(truncatedLine.length + 4, 50);
     const boxLine = "─".repeat(boxWidth);
 
-    // Cyberpunk gradient effect using different colors
+    // Cyberpunk gradient effect
     const topBorder = theme.fg("magenta", "╭") + theme.fg("cyan", boxLine) + theme.fg("magenta", "╮");
     const bottomBorder = theme.fg("magenta", "╰") + theme.fg("cyan", boxLine) + theme.fg("magenta", "╯");
-    const contentLine = `${theme.fg("magenta", "│")} ${truncatedLine} ${theme.fg("magenta", "│")}`;
+    const contentLine = `${theme.fg("magenta", "│")} ${truncatedLine.padEnd(boxWidth - 2)} ${theme.fg("magenta", "│")}`;
 
     return [topBorder, contentLine, bottomBorder];
   }
@@ -229,9 +219,9 @@ export default function (pi: ExtensionAPI) {
     }
   }
 
-  // Main update function
+  // Main update function - uses setFooter instead of setWidget
   async function updateStatus(ctx: any) {
-    if (!ctx.ui?.setWidget) return;
+    if (!ctx.ui?.setFooter) return;
 
     try {
       // Get fresh data
@@ -248,13 +238,25 @@ export default function (pi: ExtensionAPI) {
 
       // Tmux sessions
       state.tmuxSessions = await getTmuxCount();
-
-      // Render and update widget
-      const widgetLines = renderStatus(80, ctx.ui.theme); // Will be resized by TUI
-      ctx.ui.setWidget("cyberpunk-status", widgetLines);
     } catch (e) {
       // Silent fail if context is stale
     }
+  }
+
+  // Set up the footer component
+  function setupFooter(ctx: any) {
+    ctx.ui.setFooter((tui, theme, footerData) => {
+      // Subscribe to git branch changes
+      const unsub = footerData?.onBranchChange?.(() => tui.requestRender());
+
+      return {
+        dispose: unsub,
+        invalidate() {},
+        render(width: number): string[] {
+          return renderStatus(width, theme);
+        },
+      };
+    });
   }
 
   // Event handlers
@@ -268,10 +270,13 @@ export default function (pi: ExtensionAPI) {
     
     startAnimation();
     await updateStatus(ctx);
+    setupFooter(ctx);
 
     // Periodic updates
     updateInterval = setInterval(async () => {
       await updateStatus(ctx);
+      // Trigger footer re-render
+      const footerHandle = ctx.ui.setFooter;
     }, 2000);
   });
 

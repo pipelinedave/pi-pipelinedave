@@ -61,8 +61,8 @@ export default function (pi: ExtensionAPI) {
       // Left side: Mode + Activity
       const left = activity ? `${modeInfo} ${activity}` : modeInfo;
       
-      // Right side: Stats tray (always aligned right)
-      const right = `${state.tokens.toLocaleString()}📊 ${state.turns}🔄 ${state.gitChanges}📂 ${state.tmuxSessions}🖥️`;
+      // Right side: Stats tray (symbol LEFT of value, aligned right)
+      const right = `📊${state.tokens.toLocaleString()} 🔄${state.turns} 📂${state.gitChanges} 🖥️${state.tmuxSessions}`;
       
       // Calculate padding to fill the box
       const content = `${left}  │  ${right}`;

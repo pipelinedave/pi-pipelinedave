@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { TUI, Theme, Component } from "@mariozechner/pi-tui";
 
 export default function (pi: ExtensionAPI) {
   let active = true;
@@ -15,89 +16,97 @@ export default function (pi: ExtensionAPI) {
     toolStart: 0,
   };
 
-  async function updateStatus(ctx: any) {
-    if (!active || !ctx.ui?.setWidget) return;
+  // Create footer component
+  function createFooter(): Component & { dispose?(): void } {
+    let disposed = false;
 
+    return {
+      render: (width: number) => {
+        if (disposed || width < 40) return [""];
+
+        // Mode indicator with emoji
+        const modeInfo = {
+          chat: "💬",
+          plan: "📋",
+          build: "🔨",
+          review: "👀",
+        }[state.mode];
+
+        // Activity indicator (only when active)
+        let activity = "";
+        if (state.activity === "tool" && state.toolRunning) {
+          const duration = Math.round((Date.now() - state.toolStart) / 1000);
+          activity = `🔧 ${formatToolName(state.toolName)} ${duration}s`;
+        } else if (state.activity === "thinking") {
+          activity = "⚡";
+        } else if (state.activity === "network") {
+          activity = "🌐";
+        }
+
+        // Left side: Mode indicator with label
+        const left = `${modeInfo} ${state.mode.toUpperCase()}`;
+        
+        // Activity indicator (only when active) - shown after mode
+        let activityPart = "";
+        if (activity) {
+          activityPart = ` • ${activity}`;
+        }
+        
+        // Show plan progress in plan mode
+        let modeExtra = "";
+        if (state.mode === "plan" && state.planSteps.total > 0) {
+          modeExtra = ` • ${state.planSteps.completed}/${state.planSteps.total} steps`;
+        }
+        
+        // Right side: Stats tray with proper spacing
+        const stats = [
+          `📊 ${state.tokens.toLocaleString()}`,
+          `🔄 ${state.turns}`,
+          `📂 ${state.gitChanges}`,
+          `🖥️ ${state.tmuxSessions}`,
+        ].join("  ");
+        
+        // Build the full line
+        const separator = " │ ";
+        const leftFull = `${left}${activityPart}${modeExtra}`;
+        
+        // Calculate padding for right alignment
+        const totalContent = leftFull + separator + stats;
+        const padding = Math.max(0, width - totalContent.length - 2);
+        
+        return [` ${leftFull}${separator}${stats}${" ".repeat(padding)} `];
+      },
+      
+      dispose: () => {
+        disposed = true;
+      }
+    };
+  }
+
+  async function updateFooter(ctx: any) {
+    if (!active) return;
+    
+    // Get fresh data
+    const usage = ctx.getContextUsage?.();
+    if (usage?.tokens) state.tokens = usage.tokens;
+    
+    // Git status
     try {
-      // Get fresh data
-      const usage = ctx.getContextUsage?.();
-      if (usage?.tokens) state.tokens = usage.tokens;
-      
-      // Git status
-      try {
-        const { execSync } = await import("node:child_process");
-        const status = execSync("git status --short 2>/dev/null || echo ''", { encoding: "utf-8" }).trim();
-        state.gitChanges = status ? status.split("\n").filter(l => l.trim()).length : 0;
-      } catch {}
+      const { execSync } = await import("node:child_process");
+      const status = execSync("git status --short 2>/dev/null || echo ''", { encoding: "utf-8" }).trim();
+      state.gitChanges = status ? status.split("\n").filter(l => l.trim()).length : 0;
+    } catch {}
 
-      // Tmux sessions
-      try {
-        const { execSync } = await import("node:child_process");
-        const sessions = execSync("tmux list-sessions 2>/dev/null || echo ''", { encoding: "utf-8" }).trim();
-        state.tmuxSessions = sessions ? sessions.split("\n").length : 0;
-      } catch {}
+    // Tmux sessions
+    try {
+      const { execSync } = await import("node:child_process");
+      const sessions = execSync("tmux list-sessions 2>/dev/null || echo ''", { encoding: "utf-8" }).trim();
+      state.tmuxSessions = sessions ? sessions.split("\n").length : 0;
+    } catch {}
 
-      // Mode indicator with emoji
-      const modeInfo = {
-        chat: "💬",
-        plan: "📋",
-        build: "🔨",
-        review: "👀",
-      }[state.mode];
-
-      // Activity indicator (only when active)
-      let activity = "";
-      if (state.activity === "tool" && state.toolRunning) {
-        const duration = Math.round((Date.now() - state.toolStart) / 1000);
-        activity = `🔧 ${formatToolName(state.toolName)} ${duration}s`;
-      } else if (state.activity === "thinking") {
-        activity = "⚡";
-      } else if (state.activity === "network") {
-        activity = "🌐";
-      }
-
-      // Fixed width for consistent alignment
-      const minWidth = 70;
-      
-      // Left side: Mode indicator with label
-      const left = `${modeInfo} ${state.mode.toUpperCase()}`;
-      
-      // Activity indicator (only when active) - shown after mode
-      let activityPart = "";
-      if (activity) {
-        activityPart = ` • ${activity}`;
-      }
-      
-      // Show plan progress in plan mode
-      let modeExtra = "";
-      if (state.mode === "plan" && state.planSteps.total > 0) {
-        modeExtra = ` • ${state.planSteps.completed}/${state.planSteps.total} steps`;
-      }
-      
-      // Right side: Stats tray with proper spacing and labels
-      // Format: 📊 40,450  🔄 5  📂 3  🖥️ 2
-      const stats = [
-        `📊 ${state.tokens.toLocaleString()}`,
-        `🔄 ${state.turns}`,
-        `📂 ${state.gitChanges}`,
-        `🖥️ ${state.tmuxSessions}`,
-      ].join("  ");
-      
-      // Build the full line with proper alignment
-      const separator = " │ ";
-      const leftFull = `${left}${activityPart}${modeExtra}`;
-      
-      // Calculate total width and right-align stats
-      const totalWidth = Math.max(minWidth, leftFull.length + separator.length + stats.length + 4);
-      const rightPadding = totalWidth - leftFull.length - separator.length - stats.length - 2;
-      
-      const boxTop = "╭" + "─".repeat(totalWidth - 2) + "╮";
-      const boxMiddle = `│ ${leftFull}${separator}${stats}${" ".repeat(rightPadding)} │`;
-      const boxBottom = "╰" + "─".repeat(totalWidth - 2) + "╯";
-      
-      ctx.ui.setWidget("status", [boxTop, boxMiddle, boxBottom]);
-    } catch (e) {
-      // Silently fail if context is stale
+    // Update the footer
+    if (ctx.ui?.setFooter) {
+      ctx.ui.setFooter(createFooter);
     }
   }
 
@@ -113,17 +122,17 @@ export default function (pi: ExtensionAPI) {
     state.tokens = 0;
     state.planSteps = { completed: 0, total: 0 };
     state.activity = "ready";
-    updateStatus(ctx);
+    updateFooter(ctx);
   });
 
   pi.on("turn_start", async (_event, ctx) => {
     state.turns++;
     state.activity = "thinking";
-    updateStatus(ctx);
+    updateFooter(ctx);
   });
 
   pi.on("message_update", async (_event, ctx) => {
-    updateStatus(ctx);
+    updateFooter(ctx);
   });
 
   pi.on("tool_execution_start", async (event, _ctx) => {
@@ -137,14 +146,14 @@ export default function (pi: ExtensionAPI) {
     state.toolRunning = false;
     state.toolName = "";
     state.activity = "done";
-    updateStatus(ctx);
+    updateFooter(ctx);
     
     // Reset after 2 seconds
     const resetAt = Date.now() + 2000;
     const checkReset = async (_e: any, c: any) => {
       if (active && state.activity === "done" && Date.now() > resetAt) {
         state.activity = "ready";
-        updateStatus(c);
+        updateFooter(c);
         pi.off("turn_start", checkReset);
       }
     };
@@ -161,11 +170,9 @@ export default function (pi: ExtensionAPI) {
 
   // Mode detection - improved
   pi.on("tool_call", async (event, _ctx) => {
-    // Detect mode based on tools being used
     const tool = event.toolName;
     
     if (tool.includes("write") || tool.includes("edit") || tool.includes("create")) {
-      // Check for PLAN.md to distinguish plan vs build
       try {
         await import("node:fs/promises").then(fs => fs.access("PLAN.md"));
         state.mode = "plan";
@@ -175,32 +182,32 @@ export default function (pi: ExtensionAPI) {
     } else if (tool.includes("git") || tool.includes("commit") || tool.includes("diff")) {
       state.mode = "review";
     } else if (tool.includes("search") || tool.includes("browser")) {
-      state.mode = "chat"; // Research mode stays in chat
+      state.mode = "chat";
     }
-    updateStatus(_ctx);
+    updateFooter(_ctx);
   });
 
   // Listen for mode changes from context
   pi.on("context_update", async (event, ctx) => {
     if (event.mode) {
       state.mode = event.mode;
-      updateStatus(ctx);
+      updateFooter(ctx);
     }
     if (event.planSteps) {
       state.planSteps = event.planSteps;
-      updateStatus(ctx);
+      updateFooter(ctx);
     }
   });
 
   // Listen for plan step updates
   pi.on("plan_step_added", async (event, ctx) => {
     state.planSteps.total++;
-    updateStatus(ctx);
+    updateFooter(ctx);
   });
 
   pi.on("plan_step_completed", async (event, ctx) => {
     state.planSteps.completed++;
-    updateStatus(ctx);
+    updateFooter(ctx);
   });
 
   function formatToolName(name: string): string {

@@ -304,6 +304,44 @@ Planned improvements:
 
 ---
 
+## 🖥️ Terminal Title Automation
+
+Your terminal window/tab title now **automatically updates** to reflect pi.dev's current activity!
+
+### What You'll See
+
+The terminal title shows:
+- Current mode (CHAT, PLAN, BUILD, REVIEW)
+- Active tool with duration (e.g., "Write File (3s)")
+- Plan progress (e.g., "2/5 steps")
+- Current working directory
+
+**Examples:**
+```
+pi.dev: CHAT | ~/projects/my-app
+pi.dev: PLAN | 2/5 steps | ~/projects/my-app
+pi.dev: BUILD | Write File (3s) | ~/projects/my-app
+pi.dev: TOOL | Bash command | ~/projects/my-app
+```
+
+### Benefits
+- ✅ **No manual title changes** - automatically tracks activity
+- ✅ **Quick context switching** - see what you're working on at a glance
+- ✅ **Multiple sessions** - easily distinguish between different pi.dev instances
+- ✅ **Works everywhere** - compatible with most terminal emulators
+
+### Configuration
+Enable/disable in `settings.json`:
+```json
+{
+  "terminalTitle": {
+    "enabled": true
+  }
+}
+```
+
+---
+
 ## 🎉 Summary
 
 Your pi.dev TUI now provides:
@@ -315,5 +353,6 @@ Your pi.dev TUI now provides:
 - ✅ **Tool history** with `/tool-log`
 - ✅ **Automatic mode detection**
 - ✅ **Context-aware assistance**
+- ✅ **Auto-updating terminal titles** - no manual changes needed!
 
 **Total**: Professional IDE-quality experience in your terminal! 🚀

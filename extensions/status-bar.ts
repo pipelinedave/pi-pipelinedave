@@ -10,6 +10,9 @@ export default function (pi: ExtensionAPI) {
     turns: 0,
     gitChanges: 0,
     tmuxSessions: 0,
+    contextTokens: 0,
+    contextWindow: 0,
+    contextPercent: null as number | null,
     planSteps: { completed: 0, total: 0 } as { completed: number; total: number },
     toolRunning: false,
     toolName: "",
@@ -64,6 +67,7 @@ export default function (pi: ExtensionAPI) {
           `🔄 ${state.turns}`,
           `📂 ${state.gitChanges}`,
           `🖥️ ${state.tmuxSessions}`,
+          ...(state.contextWindow > 0 ? [formatContextUsage(state.contextTokens, state.contextWindow, state.contextPercent)] : []),
         ].join("  ");
         
         // Build the full line
@@ -89,6 +93,13 @@ export default function (pi: ExtensionAPI) {
     // Get fresh data
     const usage = ctx.getContextUsage?.();
     if (usage?.tokens) state.tokens = usage.tokens;
+    
+    // Context window usage
+    if (usage) {
+      state.contextTokens = usage.tokens ?? 0;
+      state.contextWindow = usage.contextWindow ?? 0;
+      state.contextPercent = usage.percent ?? null;
+    }
     
     // Git status
     try {
@@ -212,5 +223,30 @@ export default function (pi: ExtensionAPI) {
 
   function formatToolName(name: string): string {
     return name.split("_").slice(0, 2).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  }
+
+  function formatContextUsage(tokens: number, window: number, percent: number | null): string {
+    if (window <= 0) return "🪟 ?";
+    
+    // Format window size (e.g., 128000 -> 128k)
+    const formatWindow = (n: number) => {
+      if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+      if (n >= 1000) return `${(n / 1000).toFixed(0)}k`;
+      return n.toString();
+    };
+    
+    if (percent === null || isNaN(percent)) {
+      return `🪟 ?/${formatWindow(window)}`;
+    }
+    
+    // Color-coded percentage
+    let percentStr = percent.toFixed(1) + "%";
+    if (percent > 90) {
+      percentStr = `\u001b[31m${percentStr}\u001b[0m`; // Red
+    } else if (percent > 70) {
+      percentStr = `\u001b[33m${percentStr}\u001b[0m`; // Yellow
+    }
+    
+    return `🪟 ${percentStr}/${formatWindow(window)}`;
   }
 }

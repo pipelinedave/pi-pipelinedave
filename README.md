@@ -26,7 +26,7 @@ pi
 - **Chrome DevTools** (29 tools): Browser automation, performance, debugging
 - **Plus**: SQLite, Time, Brave Search, Memory tools
 
-### **9 Custom Extensions**
+### **10 Custom Extensions**
 1. **unified-status.ts** ⭐ - Ultra-cool cyberpunk status bar
 2. **mcp-bridge.ts** - MCP server integration
 3. **plan-mode.ts** - Structured workflow management
@@ -36,6 +36,7 @@ pi
 7. **notifications.ts** - Desktop notifications
 8. **session-stats.ts** - Analytics
 9. **quick-summary.ts** - Session summaries
+10. **terminal-title.ts** - Auto-updating terminal window titles
 
 ### **4 Custom Skills**
 - **code-review**: Automated security & quality reviews
@@ -48,7 +49,7 @@ Neon pink/cyan dark theme for that futuristic coding vibe
 
 ## 📊 Status Bar Features
 
-The **unified-status.ts** extension provides:
+The **status-bar.ts** extension provides:
 
 - **Real-time mode indicator**: Chat, Plan, Build, Review modes
 - **Activity tracking**: Thinking, tool execution, API calls
@@ -78,6 +79,32 @@ The **unified-status.ts** extension provides:
 - 🔧 tool (duration) - Tool execution with timer
 - 🌐 api - Network request in progress
 - ✓ - Action complete
+
+## 🖥️ Terminal Title Automation
+
+The **terminal-title.ts** extension automatically updates your terminal window/tab title:
+
+```
+pi.dev: CHAT | ~/projects/my-app
+pi.dev: PLAN | 2/5 steps | ~/projects/my-app
+pi.dev: BUILD | Write File (3s) | ~/projects/my-app
+pi.dev: TOOL | Bash command | ~/projects/my-app
+```
+
+**Benefits:**
+- ✅ No manual title changes needed
+- ✅ See current activity at a glance
+- ✅ Easy to distinguish multiple terminal sessions
+- ✅ Works in all modern terminals (iTerm2, GNOME Terminal, Windows Terminal, VS Code, etc.)
+
+**Configuration:**
+```json
+{
+  "terminalTitle": {
+    "enabled": true
+  }
+}
+```
 
 ## 🎮 Commands & Workflows
 
@@ -161,7 +188,8 @@ Background task management:
 ├── bin/
 │   └── fd                    # Fast find utility
 ├── extensions/
-│   ├── unified-status.ts     # ⭐ Cyberpunk status bar
+│   ├── status-bar.ts         # ⭐ Cyberpunk status bar
+│   ├── terminal-title.ts     # Auto-updating terminal titles
 │   ├── mcp-bridge.ts         # MCP integration
 │   ├── plan-mode.ts          # Workflow management
 │   ├── git-tools.ts          # Git automation
@@ -324,9 +352,9 @@ MIT - Feel free to use anything here in your own setup!
 ---
 
 **Status**: ✅ Fully operational with 94+ tools  
-**Last Updated**: 2026-04-26  
+**Last Updated**: 2026-05-01  
 **Total Setup Time**: ~2 hours  
-**Extensions**: 9 custom extensions  
+**Extensions**: 10 custom extensions  
 **Skills**: 4 community skills  
 **MCP Servers**: 8 servers (94 tools)
 
